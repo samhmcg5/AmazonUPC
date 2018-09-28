@@ -2,16 +2,22 @@ from PyQt5.QtWidgets import QWidget, QApplication
 import PyQt5.QtWidgets as qtw
 import PyQt5.QtCore as qtc
 import PyQt5.QtWebEngineWidgets as QtWebWid
+
 import sys
+from collections import namedtuple
 
-from scrape import ScrapeAmazon
+Product = namedtuple('Product', ['link', 'title'])
 
-BASE_URL = "https://www.amazon.com/s/field-keywords=%s"
-DEFAULT_SEARCH = "9780316040341"
+X=0
+def generateFakeStuff():
+    global X
+    items = []
+    for i in range(X,X+20):
+        items.append(Product("https://www.google.com/%i" % i, "Search %i" % i))
+    X = X + 20
+    return items
 
-###############################
-### TOP LEVEL GUI COMPONENT ###
-###############################
+
 class SystemGui(QWidget):
     def __init__(self):
         super().__init__()
@@ -20,77 +26,111 @@ class SystemGui(QWidget):
         self.show()
 
     def initUI(self):
+        # Top level container
+        self.vbox = qtw.QVBoxLayout()
+        # hold links and webview
+        self.hbox = qtw.QHBoxLayout()
+
+        # Components
         self.navBar = NavigationBar()
         self.navBar.setFixedHeight(100)
-        self.webView = WebView(DEFAULT_SEARCH)
+        self.vbox.addWidget(self.navBar)
+
+        self.vbox.addLayout(self.hbox)
+
         self.sidebar = LinkSidebar()
-        self.scrollArea = qtw.QScrollArea()
-        self.scrollArea.setWidget(self.sidebar)
-        vbox = qtw.QVBoxLayout()
-        hbox = qtw.QHBoxLayout()
-        vbox.addWidget(self.navBar)
-        hbox.addWidget(self.scrollArea)
-        hbox.addWidget(self.webView)
-        vbox.addLayout(hbox)
-        self.setLayout(vbox)
-        self.setWindowTitle("Amazon Prime UPC Reader")
+        self.hbox.addWidget(self.sidebar)
+
+        self.webView = WebView(self.navBar.upcLine)
+        self.hbox.addWidget(self.webView)
+
+        self.setLayout(self.vbox)
+        self.setWindowTitle("Amazon Prime Bar Code Loader")
 
     def connectSignals(self):
-        # self.navBar.refButton.clicked.connect(self.webView.reload)
-        self.navBar.refButton.clicked.connect(self.refreshPage)
-        self.navBar.upcLine.returnPressed.connect(self.refreshPage)
+        self.sidebar.itemClicked.connect(self.webView.handleItemCLick)
+        self.navBar.refButton.clicked.connect(self.webView.handleRefreshClick)
+        self.navBar.upcLine.returnPressed.connect(self.webView.handleEnter)
+        self.webView.itemSig.connect(self.sidebar.updateItems)
 
-    def refreshPage(self):
-        param = self.navBar.upcLine.text()
-        links = ScrapeAmazon.searchPageLinks(param)
-        if len(links) > 0:
-            self.webView.setUrl(qtc.QUrl(links[0]))
-        else:
-            self.webView.setParam(param)
 
 class NavigationBar(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
+
     def initUI(self):
-        self.refButton = qtw.QPushButton("Refresh")
-        self.upcLine = qtw.QLineEdit(DEFAULT_SEARCH)
+        # top level of this class
+        vLayout = qtw.QVBoxLayout()
         hNavBox = qtw.QHBoxLayout()
+        hCheckBox = qtw.QHBoxLayout()
+
+        self.refButton = qtw.QPushButton("Refresh")
+        self.upcLine = qtw.QLineEdit()
         hNavBox.addWidget(self.refButton)
         hNavBox.addWidget(self.upcLine)
+
         self.checkNew = qtw.QCheckBox("New")
         self.checkUsed = qtw.QCheckBox("Like New")
         self.checkAcc = qtw.QCheckBox("Acceptable")
-        hCheckBox = qtw.QHBoxLayout()
+        self.checkNew.setChecked(True)
+        self.checkAcc.setChecked(True)
+        self.checkUsed.setChecked(True)
         hCheckBox.addWidget(self.checkNew, qtc.Qt.AlignLeft)
         hCheckBox.addWidget(self.checkUsed, qtc.Qt.AlignLeft)
         hCheckBox.addWidget(self.checkAcc, qtc.Qt.AlignLeft)
-        vLayout = qtw.QVBoxLayout()
+
         vLayout.addLayout(hNavBox)
         vLayout.addLayout(hCheckBox)
         self.setLayout(vLayout)
 
 
 class WebView(QtWebWid.QWebEngineView):
-    def __init__(self, param):
+    itemSig = qtc.pyqtSignal(list)
+    def __init__(self, upcLine):
         super().__init__()
-        self.param = param
-        self.initUI()
-    
-    def initUI(self):
-        self.setUrl(qtc.QUrl(BASE_URL % self.param))
+        self.parentUPC = upcLine
+        self.setUrl(qtc.QUrl('https://www.google.com'))
 
-    def setParam(self, param):
-        self.param = param
-        self.setUrl(qtc.QUrl(BASE_URL % self.param))
+    def getParam(self):
+        return self.parentUPC.text()
 
+    def handleItemCLick(self, item):
+        print("Clicked <WebView>", item.link)
+        self.loadWebpage(item.link)
 
-class LinkSidebar(QWidget):
+    def handleRefreshClick(self):
+        print("Clicked <Refresh>", self.getParam())
+        ###############
+        self.itemSig.emit(generateFakeStuff())
+
+    def handleEnter(self):
+        print("Clicked <Enter>", self.getParam())
+        ###############
+        self.itemSig.emit(generateFakeStuff())
+
+    def loadWebpage(self, url):
+        self.setUrl(qtc.QUrl(url))
+        
+
+class LinkSidebar(qtw.QListWidget):
     def __init__(self):
         super().__init__()
-        self.initUI()
-    def initUI(self):
-        self.vbox = qtw.QVBoxLayout()
-        for i in range(30):
-            self.vbox.addWidget(qtw.QLabel("Label Number %s" % i))
-        self.setLayout(self.vbox)
+
+    # def testItems(self):
+    #     for i in range(40):
+    #         LinkItem("text %i" % i, "Link%i"%i, self)
+
+    def updateItems(self, items):
+        self.items = items
+        self.clear()
+        for i in items:
+            LinkItem(i.title, i.link, self)
+    
+            
+class LinkItem(qtw.QListWidgetItem):
+    def __init__(self, text, link, parent):
+        super().__init__(text, parent)
+        self.link = link
+
+
