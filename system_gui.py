@@ -6,7 +6,7 @@ import PyQt5.QtWebEngineWidgets as QtWebWid
 import sys
 from collections import namedtuple
 
-Product = namedtuple('Product', ['link', 'title'])
+from scrape import Product, getItemLinks
 
 X=0
 def generateFakeStuff():
@@ -39,6 +39,7 @@ class SystemGui(QWidget):
         self.vbox.addLayout(self.hbox)
 
         self.sidebar = LinkSidebar()
+        self.sidebar.setFixedWidth(200)
         self.hbox.addWidget(self.sidebar)
 
         self.webView = WebView(self.navBar.upcLine)
@@ -96,18 +97,18 @@ class WebView(QtWebWid.QWebEngineView):
         return self.parentUPC.text()
 
     def handleItemCLick(self, item):
-        print("Clicked <WebView>", item.link)
+        print("Clicked <LinkList>", item.link)
         self.loadWebpage(item.link)
 
     def handleRefreshClick(self):
         print("Clicked <Refresh>", self.getParam())
-        ###############
-        self.itemSig.emit(generateFakeStuff())
+        items = getItemLinks(self.getParam())
+        self.itemSig.emit(items)
 
     def handleEnter(self):
         print("Clicked <Enter>", self.getParam())
-        ###############
-        self.itemSig.emit(generateFakeStuff())
+        items = getItemLinks(self.getParam())
+        self.itemSig.emit(items)
 
     def loadWebpage(self, url):
         self.setUrl(qtc.QUrl(url))
@@ -117,15 +118,14 @@ class LinkSidebar(qtw.QListWidget):
     def __init__(self):
         super().__init__()
 
-    # def testItems(self):
-    #     for i in range(40):
-    #         LinkItem("text %i" % i, "Link%i"%i, self)
-
     def updateItems(self, items):
         self.items = items
         self.clear()
         for i in items:
             LinkItem(i.title, i.link, self)
+        self.setCurrentRow(0)
+        if self.count() > 0:
+            self.itemClicked.emit(self.item(0))
     
             
 class LinkItem(qtw.QListWidgetItem):
