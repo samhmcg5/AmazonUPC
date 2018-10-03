@@ -2,25 +2,17 @@ from PyQt5.QtWidgets import QWidget, QApplication
 import PyQt5.QtWidgets as qtw
 import PyQt5.QtCore as qtc
 import PyQt5.QtWebEngineWidgets as QtWebWid
-
+from PyQt5.QtGui import QFont
 import sys
 from collections import namedtuple
 
-from scrape import Product, getItemLinks
-
-X=0
-def generateFakeStuff():
-    global X
-    items = []
-    for i in range(X,X+20):
-        items.append(Product("https://www.google.com/%i" % i, "Search %i" % i))
-    X = X + 20
-    return items
-
+from scrape import ScrapeThread
 
 class SystemGui(QWidget):
     def __init__(self):
         super().__init__()
+        self.scraper = ScrapeThread()
+        self.scraper.start()
         self.initUI()
         self.connectSignals()
         self.show()
@@ -29,20 +21,23 @@ class SystemGui(QWidget):
         # Top level container
         self.vbox = qtw.QVBoxLayout()
         # hold links and webview
-        self.hbox = qtw.QHBoxLayout()
+        # self.hbox = qtw.QHBoxLayout()
+        self.hbox = qtw.QSplitter()
 
         # Components
         self.navBar = NavigationBar()
-        self.navBar.setFixedHeight(100)
+        # self.navBar.setFixedHeight(100)
+        self.navBar.setFixedHeight(75)
         self.vbox.addWidget(self.navBar)
 
-        self.vbox.addLayout(self.hbox)
+        # self.vbox.addLayout(self.hbox)
+        self.vbox.addWidget(self.hbox)
 
-        self.sidebar = LinkSidebar()
-        self.sidebar.setFixedWidth(200)
+        self.sidebar = LinkSidebar(self.navBar)
+        # self.sidebar.setFixedWidth(200)
         self.hbox.addWidget(self.sidebar)
 
-        self.webView = WebView(self.navBar.upcLine)
+        self.webView = WebView()
         self.hbox.addWidget(self.webView)
 
         self.setLayout(self.vbox)
@@ -50,9 +45,14 @@ class SystemGui(QWidget):
 
     def connectSignals(self):
         self.sidebar.itemClicked.connect(self.webView.handleItemCLick)
-        self.navBar.refButton.clicked.connect(self.webView.handleRefreshClick)
-        self.navBar.upcLine.returnPressed.connect(self.webView.handleEnter)
-        self.webView.itemSig.connect(self.sidebar.updateItems)
+        self.scraper.dataSig.connect(self.sidebar.updateItems)
+        self.navBar.refButton.clicked.connect(self.requestData)
+        self.navBar.upcLine.returnPressed.connect(self.requestData)
+
+    def requestData(self):
+        param = self.navBar.upcLine.text()
+        self.scraper.pushTask(param)
+
 
 
 class NavigationBar(QWidget):
@@ -68,55 +68,48 @@ class NavigationBar(QWidget):
 
         self.refButton = qtw.QPushButton("Refresh")
         self.upcLine = qtw.QLineEdit()
+        # Force all keyboard input to the line edit
+        self.upcLine.grabKeyboard()
         hNavBox.addWidget(self.refButton)
         hNavBox.addWidget(self.upcLine)
 
-        self.checkNew = qtw.QCheckBox("New")
-        self.checkUsed = qtw.QCheckBox("Like New")
-        self.checkAcc = qtw.QCheckBox("Acceptable")
-        self.checkNew.setChecked(True)
-        self.checkAcc.setChecked(True)
-        self.checkUsed.setChecked(True)
-        hCheckBox.addWidget(self.checkNew, qtc.Qt.AlignLeft)
-        hCheckBox.addWidget(self.checkUsed, qtc.Qt.AlignLeft)
-        hCheckBox.addWidget(self.checkAcc, qtc.Qt.AlignLeft)
+        self.searchLabel = qtw.QLabel("Search for:")
+        font = self.searchLabel.font()
+        font.setPointSize(14)
+        self.searchLabel.setFont(font)
+        hCheckBox.addWidget(self.searchLabel)
 
         vLayout.addLayout(hNavBox)
         vLayout.addLayout(hCheckBox)
         self.setLayout(vLayout)
+    
+    def getParam(self):
+        return self.upcLine.text()
+
+    def updateResults(self):
+        self.searchLabel.setText("Search for: %s" % self.upcLine.text())
+        self.upcLine.setText("")
 
 
 class WebView(QtWebWid.QWebEngineView):
     itemSig = qtc.pyqtSignal(list)
-    def __init__(self, upcLine):
+    def __init__(self):
         super().__init__()
-        self.parentUPC = upcLine
-        self.setUrl(qtc.QUrl('https://www.google.com'))
-
-    def getParam(self):
-        return self.parentUPC.text()
+        html = open('home.html','r').read()
+        self.setHtml(html)
 
     def handleItemCLick(self, item):
         print("Clicked <LinkList>", item.link)
         self.loadWebpage(item.link)
-
-    def handleRefreshClick(self):
-        print("Clicked <Refresh>", self.getParam())
-        items = getItemLinks(self.getParam())
-        self.itemSig.emit(items)
-
-    def handleEnter(self):
-        print("Clicked <Enter>", self.getParam())
-        items = getItemLinks(self.getParam())
-        self.itemSig.emit(items)
 
     def loadWebpage(self, url):
         self.setUrl(qtc.QUrl(url))
         
 
 class LinkSidebar(qtw.QListWidget):
-    def __init__(self):
+    def __init__(self, navBar):
         super().__init__()
+        self.navBar = navBar
 
     def updateItems(self, items):
         self.items = items
@@ -126,6 +119,7 @@ class LinkSidebar(qtw.QListWidget):
         self.setCurrentRow(0)
         if self.count() > 0:
             self.itemClicked.emit(self.item(0))
+        self.navBar.updateResults()
     
             
 class LinkItem(qtw.QListWidgetItem):

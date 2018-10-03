@@ -3,9 +3,11 @@ from bs4 import BeautifulSoup
 import requests
 import re
 from user_agent import generate_user_agent
-from collections import namedtuple
+from collections import namedtuple, deque
+from multiprocessing import Queue
 
 from PyQt5.QtCore import QThread
+import PyQt5.QtCore as qtc
 
 Product = namedtuple('Product', ['link', 'title'])
 
@@ -35,14 +37,25 @@ def getItemLinks(param):
 
 
 class ScrapeThread(QThread):
+    dataSig = qtc.pyqtSignal(list)
     def __init__(self):
+        self.queue = deque()
         super().__init__()
 
     def __del__(self):
         self.wait()
 
+    def pushTask(self, param):
+        self.queue.append(param)
+
     def run(self):
-        return
+        while True:
+            try:
+                param = self.queue.popleft()
+                items = getItemLinks(param)
+                self.dataSig.emit(items)
+            except IndexError:
+                pass
 
 
 if __name__ == '__main__':
