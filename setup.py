@@ -1,10 +1,10 @@
 from cx_Freeze import setup, Executable
 
-# build_exe_options = {"excludes": ["tkinter", "PyQt4.sqlite3",
-#                                   "QtOpenGL4", "QtSql"]}
 
-build_exe_options = dict(excludes=["tkinter"], includes=[
-                    "idna.idnadata"], optimize=1, include_files=['home.html'])
+build_exe_options = dict(excludes=["tkinter", "PyQt4.sqlite3","QtOpenGL4", "QtSql"],
+                        includes=["idna.idnadata"], 
+                        optimize=2, 
+                        include_files=['home.html'])
 
 
 setup(name="main",

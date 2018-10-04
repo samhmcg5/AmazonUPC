@@ -21,20 +21,15 @@ class SystemGui(QWidget):
         # Top level container
         self.vbox = qtw.QVBoxLayout()
         # hold links and webview
-        # self.hbox = qtw.QHBoxLayout()
         self.hbox = qtw.QSplitter()
 
         # Components
         self.navBar = NavigationBar()
-        # self.navBar.setFixedHeight(100)
         self.navBar.setFixedHeight(75)
         self.vbox.addWidget(self.navBar)
-
-        # self.vbox.addLayout(self.hbox)
         self.vbox.addWidget(self.hbox)
 
         self.sidebar = LinkSidebar(self.navBar)
-        # self.sidebar.setFixedWidth(200)
         self.hbox.addWidget(self.sidebar)
 
         self.webView = WebView()
