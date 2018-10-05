@@ -122,7 +122,6 @@ class WebView(QtWebWid.QWebEngineView):
         self.setHtml(home_html)
 
     def handleItemCLick(self, item):
-        print("Clicked <LinkList>", item.link)
         self.loadWebpage(item.link)
 
     def loadWebpage(self, url):

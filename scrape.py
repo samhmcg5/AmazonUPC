@@ -22,8 +22,6 @@ def getItemLinks(param):
         items = soup.find_all(
             'a', attrs={'class': 'a-text-normal', 'href': re.compile(".*amazon.*")})
         
-        print("ITEMS == ", len(items))
-
         items_list = []
         for item in items:
             if item.has_attr('href') and item.has_attr('title'):
@@ -57,8 +55,3 @@ class ScrapeThread(QThread):
             except IndexError:
                 pass
 
-
-if __name__ == '__main__':
-    items = getItemLinks('tv')
-    for item in items:
-        print (item.title)
