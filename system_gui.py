@@ -8,13 +8,26 @@ from collections import namedtuple
 
 from scrape import ScrapeThread
 
-html = """
+home_html = """
     <!DOCTYPE html>
     <html>
     <body>
         <div>
             <h1 style="font-family:sans-serif; text-align: center" >
                 Scan or type a code to continue
+            </h1>
+        </div>
+    </body>
+    </html>
+"""
+
+none_html = """
+    <!DOCTYPE html>
+    <html>
+    <body>
+        <div>
+            <h1 style="font-family:sans-serif; text-align: center" >
+                No items found, try scan again
             </h1>
         </div>
     </body>
@@ -55,13 +68,13 @@ class SystemGui(QWidget):
     def connectSignals(self):
         self.sidebar.itemClicked.connect(self.webView.handleItemCLick)
         self.scraper.dataSig.connect(self.sidebar.updateItems)
+        self.scraper.dataSig.connect(self.webView.setNoResults)
         self.navBar.refButton.clicked.connect(self.requestData)
         self.navBar.upcLine.returnPressed.connect(self.requestData)
 
     def requestData(self):
         param = self.navBar.upcLine.text()
         self.scraper.pushTask(param)
-
 
 
 class NavigationBar(QWidget):
@@ -77,6 +90,7 @@ class NavigationBar(QWidget):
 
         self.refButton = qtw.QPushButton("Refresh")
         self.upcLine = qtw.QLineEdit()
+        # self.upcLine.setFixedHeight(15)
         # Force all keyboard input to the line edit
         self.upcLine.grabKeyboard()
         hNavBox.addWidget(self.refButton)
@@ -105,7 +119,7 @@ class WebView(QtWebWid.QWebEngineView):
     def __init__(self):
         super().__init__()
         global html
-        self.setHtml(html)
+        self.setHtml(home_html)
 
     def handleItemCLick(self, item):
         print("Clicked <LinkList>", item.link)
@@ -113,6 +127,11 @@ class WebView(QtWebWid.QWebEngineView):
 
     def loadWebpage(self, url):
         self.setUrl(qtc.QUrl(url))
+
+    def setNoResults(self, items):
+        if len(items) == 0:
+            global none_html
+            self.setHtml(none_html)
         
 
 class LinkSidebar(qtw.QListWidget):
@@ -127,7 +146,7 @@ class LinkSidebar(qtw.QListWidget):
             LinkItem(i.title, i.link, self)
         self.setCurrentRow(0)
         if self.count() > 0:
-            self.itemClicked.emit(self.item(0))
+            self.itemClicked.emit(self.item(0))            
         self.navBar.updateResults()
     
             
