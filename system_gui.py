@@ -8,6 +8,20 @@ from collections import namedtuple
 
 from scrape import ScrapeThread
 
+html = """
+    <!DOCTYPE html>
+    <html>
+    <body>
+        <div>
+            <h1 style="font-family:sans-serif; text-align: center" >
+                Scan or type a code to continue
+            </h1>
+        </div>
+    </body>
+    </html>
+"""
+
+
 class SystemGui(QWidget):
     def __init__(self):
         super().__init__()
@@ -90,7 +104,7 @@ class WebView(QtWebWid.QWebEngineView):
     itemSig = qtc.pyqtSignal(list)
     def __init__(self):
         super().__init__()
-        html = open('home.html','r').read()
+        global html
         self.setHtml(html)
 
     def handleItemCLick(self, item):
