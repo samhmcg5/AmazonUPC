@@ -93,6 +93,8 @@ class NavigationBar(QWidget):
         # self.upcLine.setFixedHeight(15)
         # Force all keyboard input to the line edit
         self.upcLine.grabKeyboard()
+        if sys.platform != "win32":
+            self.upcLine.setFixedHeight(15)
         hNavBox.addWidget(self.refButton)
         hNavBox.addWidget(self.upcLine)
 
